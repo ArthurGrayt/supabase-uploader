@@ -1,130 +1,152 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Upload de Documentos</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    background-color: #0f172a;
-    color: #e2e8f0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 60px;
-  }
-  h2 {
-    margin-bottom: 20px;
-  }
-  input[type="file"] {
-    background-color: #1e293b;
-    color: #e2e8f0;
-    border: none;
-    padding: 10px;
-    border-radius: 6px;
-  }
-  button {
-    margin-top: 20px;
-    padding: 10px 20px;
-    font-size: 16px;
-    border-radius: 8px;
-    background-color: #3b82f6;
-    color: white;
-    border: none;
-    cursor: pointer;
-  }
-  button:hover {
-    background-color: #2563eb;
-  }
-  .log {
-    margin-top: 25px;
-    width: 80%;
-    max-width: 500px;
-    background-color: #1e293b;
-    padding: 10px;
-    border-radius: 8px;
-    font-size: 14px;
-    overflow-y: auto;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enviar Documentos</title>
+
+  <style>
+    :root {
+      --ff-blue: #0066FF;
+      --ff-blue-hover: #0052CC;
+      --ff-bg-light: #F5F5F5;
+      --ff-bg-dark: #1C1C1C;
+      --ff-text-light: #333333;
+      --ff-text-dark: #EDEDED;
+      --ff-shadow: 0 3px 6px rgba(0,0,0,0.18);
+      --ff-radius: 24px;
+      --transition: all 0.25s ease-in-out;
+    }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--ff-bg-light);
+      font-family: "Inter", sans-serif;
+      transition: var(--transition);
+      color: var(--ff-text-light);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: var(--ff-bg-dark);
+        color: var(--ff-text-dark);
+      }
+    }
+
+    .upload-btn {
+      background-color: var(--ff-blue);
+      color: #fff;
+      border: none;
+      border-radius: var(--ff-radius);
+      padding: 14px 28px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: var(--ff-shadow);
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      outline: none;
+    }
+
+    .upload-btn:hover {
+      background-color: var(--ff-blue-hover);
+      transform: translateY(-1px);
+    }
+
+    .upload-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #666;
+      text-align: center;
+      transition: var(--transition);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .status {
+        color: #ccc;
+      }
+    }
+  </style>
 </head>
 <body>
-  <h2>Upload de Documentos</h2>
-  <input type="file" id="fileInput" multiple>
-  <button id="uploadBtn">Enviar para Supabase</button>
+  <input type="file" id="fileInput" multiple />
+  <button class="upload-btn" id="selectBtn">📂 Selecionar Arquivos</button>
+  <div class="status" id="statusText">Nenhum arquivo selecionado</div>
 
-  <div class="log" id="logBox">Aguardando upload...</div>
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // ================================
+    // ==========================
     // CONFIGURAÇÃO DO SUPABASE
-    // ================================
-    const supabaseUrl = 'https://wofipjazcxwxzzxjsflh.supabase.co';
+    // ==========================
+      const supabaseUrl = 'https://wofipjazcxwxzzxjsflh.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvZmlwamF6Y3h3eHp6eGpzZmxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4MDA2NjcsImV4cCI6MjA3NDM3NjY2N30.gKjTEhXbrvRxKcn3cNvgMlbigXypbshDWyVaLqDjcpQ';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     const fileInput = document.getElementById('fileInput');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const logBox = document.getElementById('logBox');
+    const selectBtn = document.getElementById('selectBtn');
+    const statusText = document.getElementById('statusText');
 
-    function log(message) {
-      logBox.innerHTML += `<br>${message}`;
-      logBox.scrollTop = logBox.scrollHeight;
-    }
+    // Clique no botão abre seletor
+    selectBtn.addEventListener('click', () => {
+      fileInput.click();
+    });
 
-    uploadBtn.addEventListener('click', async () => {
-      const files = fileInput.files;
-      if (!files.length) {
-        alert('Selecione ao menos um arquivo.');
-        return;
-      }
+    // Quando selecionar arquivos
+    fileInput.addEventListener('change', async (event) => {
+      const files = event.target.files;
+      if (!files.length) return;
 
-      log(`Iniciando upload de ${files.length} arquivo(s)...`);
+      statusText.textContent = `${files.length} arquivo(s) selecionado(s). Enviando...`;
 
       for (const file of files) {
-        const fileName = file.name;
-        const fileExt = fileName.substring(fileName.lastIndexOf('.'));
-        const filePath = `docs/${fileName}`;
+        const ext = file.name.split('.').pop();
+        const path = `docs/${file.name}`;
 
-        log(`📄 Enviando: ${fileName}`);
-
-        // Upload para o bucket 'documents/docs'
-        const { data: uploadData, error: uploadError } = await supabase
-          .storage
+        // Upload no Storage
+        const { error: uploadError } = await supabase.storage
           .from('documents')
-          .upload(filePath, file, { upsert: true });
+          .upload(path, file, { upsert: true });
 
         if (uploadError) {
-          log(`❌ Erro no upload de ${fileName}: ${uploadError.message}`);
-          continue;
+          console.error(uploadError);
+          statusText.textContent = `❌ Erro ao enviar: ${file.name}`;
+          return;
         }
 
-        // Gera URL pública
-        const { data: publicUrlData } = supabase
-          .storage
-          .from('documents')
-          .getPublicUrl(filePath);
-        const publicUrl = publicUrlData.publicUrl;
-
-        // Insere metadados na tabela 'docs'
+        // Inserir no banco
         const { error: insertError } = await supabase
           .from('docs')
-          .insert([{
-            doc_name: fileName,
-            format: fileExt,
-            url: publicUrl
-          }]);
+          .insert({
+            docname: file.name,
+            formato: '.' + ext,
+            url: `https://SEU_PROJETO.supabase.co/storage/v1/object/public/documents/${path}`
+          });
 
         if (insertError) {
-          log(`⚠️ Erro ao inserir no banco: ${insertError.message}`);
-        } else {
-          log(`✅ Sucesso: ${fileName} (${fileExt}) salvo.`);
+          console.error(insertError);
+          statusText.textContent = `⚠️ Erro ao salvar: ${file.name}`;
+          return;
         }
       }
 
-      log(`🎉 Upload concluído!`);
+      statusText.textContent = `✅ ${files.length} arquivo(s) enviados com sucesso!`;
     });
   </script>
 </body>
