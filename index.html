@@ -3,150 +3,125 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Enviar Documentos</title>
-
+  <title>Botão Flutuante de Upload</title>
   <style>
-    :root {
-      --ff-blue: #0066FF;
-      --ff-blue-hover: #0052CC;
-      --ff-bg-light: #F5F5F5;
-      --ff-bg-dark: #1C1C1C;
-      --ff-text-light: #333333;
-      --ff-text-dark: #EDEDED;
-      --ff-shadow: 0 3px 6px rgba(0,0,0,0.18);
-      --ff-radius: 24px;
-      --transition: all 0.25s ease-in-out;
-    }
-
-    body {
+    html, body {
       margin: 0;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background-color: var(--ff-bg-light);
-      font-family: "Inter", sans-serif;
-      transition: var(--transition);
-      color: var(--ff-text-light);
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      overflow: hidden;
     }
 
-    @media (prefers-color-scheme: dark) {
-      body {
-        background-color: var(--ff-bg-dark);
-        color: var(--ff-text-dark);
-      }
+    .floating-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      background: transparent;
     }
 
     .upload-btn {
-      background-color: var(--ff-blue);
-      color: #fff;
-      border: none;
-      border-radius: var(--ff-radius);
-      padding: 14px 28px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: var(--ff-shadow);
-      transition: var(--transition);
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background-color: #0A0E29;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+      cursor: pointer;
+      border: none;
       outline: none;
+      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
     }
 
     .upload-btn:hover {
-      background-color: var(--ff-blue-hover);
-      transform: translateY(-1px);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.3);
     }
 
     .upload-btn:active {
       transform: translateY(1px);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    }
+
+    .upload-icon {
+      width: 26px;
+      height: 26px;
+      filter: invert(100%);
     }
 
     #fileInput {
       display: none;
     }
-
-    .status {
-      margin-top: 10px;
-      font-size: 14px;
-      font-weight: 500;
-      color: #666;
-      text-align: center;
-      transition: var(--transition);
-    }
-
-    @media (prefers-color-scheme: dark) {
-      .status {
-        color: #ccc;
-      }
-    }
   </style>
 </head>
 <body>
-  <input type="file" id="fileInput" multiple />
-  <button class="upload-btn" id="selectBtn">📂 Selecionar Arquivos</button>
-  <div class="status" id="statusText">Nenhum arquivo selecionado</div>
+  <div class="floating-container">
+    <input type="file" id="fileInput" multiple />
+    <button class="upload-btn" id="selectBtn">
+      <img src="https://cdn-icons-png.flaticon.com/512/2997/2997933.png" class="upload-icon" alt="Upload" />
+    </button>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // ==========================
-    // CONFIGURAÇÃO DO SUPABASE
-    // ==========================
-      const supabaseUrl = 'https://wofipjazcxwxzzxjsflh.supabase.co';
+    const supabaseUrl = 'https://wofipjazcxwxzzxjsflh.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvZmlwamF6Y3h3eHp6eGpzZmxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4MDA2NjcsImV4cCI6MjA3NDM3NjY2N30.gKjTEhXbrvRxKcn3cNvgMlbigXypbshDWyVaLqDjcpQ';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     const fileInput = document.getElementById('fileInput');
     const selectBtn = document.getElementById('selectBtn');
-    const statusText = document.getElementById('statusText');
 
-    // Clique no botão abre seletor
     selectBtn.addEventListener('click', () => {
       fileInput.click();
     });
 
-    // Quando selecionar arquivos
     fileInput.addEventListener('change', async (event) => {
       const files = event.target.files;
       if (!files.length) return;
 
-      statusText.textContent = `${files.length} arquivo(s) selecionado(s). Enviando...`;
-
       for (const file of files) {
-        const ext = file.name.split('.').pop();
-        const path = `docs/${file.name}`;
+        const sanitizedFileName = file.name
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-zA-Z0-9.\-_]/g, "_");
 
-        // Upload no Storage
+        const ext = file.name.split('.').pop();
+        const uniqueName = `${Date.now()}-${sanitizedFileName}`;
+        const path = `docs/${uniqueName}`;
+
+        // Upload do arquivo para o bucket "documents"
         const { error: uploadError } = await supabase.storage
           .from('documents')
-          .upload(path, file, { upsert: true });
+          .upload(path, file, { upsert: false });
 
         if (uploadError) {
-          console.error(uploadError);
-          statusText.textContent = `❌ Erro ao enviar: ${file.name}`;
+          console.error('Erro no upload:', uploadError);
           return;
         }
 
-        // Inserir no banco
+        // Inserção correta na tabela `docs`
         const { error: insertError } = await supabase
           .from('docs')
           .insert({
-            docname: file.name,
-            formato: '.' + ext,
-            url: `https://SEU_PROJETO.supabase.co/storage/v1/object/public/documents/${path}`
+            doc_name: file.name, // nome da coluna correto
+            format: '.' + ext,   // nome da coluna correto
+            url: `${supabaseUrl}/storage/v1/object/public/documents/${path}`
           });
 
         if (insertError) {
-          console.error(insertError);
-          statusText.textContent = `⚠️ Erro ao salvar: ${file.name}`;
+          console.error('Erro ao salvar no banco:', insertError);
           return;
         }
+
+        console.log('Arquivo salvo com sucesso!');
       }
 
-      statusText.textContent = `✅ ${files.length} arquivo(s) enviados com sucesso!`;
+      if (window.navigator.vibrate) {
+        window.navigator.vibrate(50);
+      }
     });
   </script>
 </body>
