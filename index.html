@@ -12,6 +12,7 @@
       height: 100%;
       background: transparent;
       overflow: hidden;
+      font-family: Arial, sans-serif;
     }
 
     .floating-container {
@@ -55,9 +56,26 @@
     #fileInput {
       display: none;
     }
+
+    /* 🔹 Mensagem de setor detectado */
+    #sectorInfo {
+      position: fixed;
+      bottom: 100px;
+      right: 20px;
+      background-color: #0A0E29;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+      font-size: 14px;
+      z-index: 9999;
+    }
   </style>
 </head>
 <body>
+  <!-- 🔹 Mensagem de confirmação de setor -->
+  <div id="sectorInfo">Detectando setor...</div>
+
   <div class="floating-container">
     <input type="file" id="fileInput" multiple />
     <button class="upload-btn" id="selectBtn">
@@ -67,16 +85,27 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
+    // 🔹 Configurações do Supabase
     const supabaseUrl = 'https://wofipjazcxwxzzxjsflh.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndvZmlwamF6Y3h3eHp6eGpzZmxoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg4MDA2NjcsImV4cCI6MjA3NDM3NjY2N30.gKjTEhXbrvRxKcn3cNvgMlbigXypbshDWyVaLqDjcpQ';
     const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
+    // 🔹 Captura o parâmetro 'sector' da URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const rawSector = urlParams.get('sector');
+    const sectorCode = rawSector && !isNaN(rawSector) ? parseInt(rawSector) : null;
+
+    // 🔹 Exibe visualmente o setor detectado
+    const sectorInfo = document.getElementById('sectorInfo');
+    if (sectorCode !== null) {
+      sectorInfo.textContent = `Setor ${sectorCode} detectado — pronto para enviar arquivos.`;
+    } else {
+      sectorInfo.textContent = `Nenhum setor informado na URL.`;
+      sectorInfo.style.backgroundColor = '#b71c1c';
+    }
+
     const fileInput = document.getElementById('fileInput');
     const selectBtn = document.getElementById('selectBtn');
-
-    // 🔹 Recebe o código do setor via Page State do FlutterFlow
-    const sectorCode = window.sectorCode || null; 
-    // (no FlutterFlow, você pode usar: runJavaScript('window.sectorCode = ' + pageState.sector);)
 
     selectBtn.addEventListener('click', () => {
       fileInput.click();
@@ -85,6 +114,11 @@
     fileInput.addEventListener('change', async (event) => {
       const files = event.target.files;
       if (!files.length) return;
+
+      if (sectorCode === null) {
+        alert('⚠️ Nenhum código de setor foi informado na URL. Adicione ?sector=4, por exemplo.');
+        return;
+      }
 
       for (const file of files) {
         const sanitizedFileName = file.name
@@ -96,32 +130,35 @@
         const uniqueName = `${Date.now()}-${sanitizedFileName}`;
         const path = `docs/${uniqueName}`;
 
-        // Upload do arquivo para o bucket "documents"
+        // 🔹 Upload do arquivo para o bucket "documents"
         const { error: uploadError } = await supabase.storage
           .from('documents')
           .upload(path, file, { upsert: false });
 
         if (uploadError) {
           console.error('Erro no upload:', uploadError);
+          alert('❌ Erro ao enviar arquivo.');
           return;
         }
 
-        // Inserção no banco de dados com o código do setor
+        // 🔹 Inserção no banco de dados
         const { error: insertError } = await supabase
           .from('docs')
           .insert({
             doc_name: file.name,
             format: '.' + ext,
             url: `${supabaseUrl}/storage/v1/object/public/documents/${path}`,
-            sector: sectorCode // 👈 novo campo adicionado
+            sector: sectorCode // 👈 agora o setor é enviado corretamente
           });
 
         if (insertError) {
           console.error('Erro ao salvar no banco:', insertError);
+          alert('❌ Erro ao salvar dados no banco.');
           return;
         }
 
-        console.log('Arquivo salvo com sucesso!');
+        console.log('✅ Arquivo salvo com sucesso!');
+        alert('✅ Arquivo enviado e salvo com sucesso!');
       }
 
       if (window.navigator.vibrate) {
