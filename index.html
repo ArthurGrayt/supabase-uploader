@@ -74,6 +74,10 @@
     const fileInput = document.getElementById('fileInput');
     const selectBtn = document.getElementById('selectBtn');
 
+    // 🔹 Recebe o código do setor via Page State do FlutterFlow
+    const sectorCode = window.sectorCode || null; 
+    // (no FlutterFlow, você pode usar: runJavaScript('window.sectorCode = ' + pageState.sector);)
+
     selectBtn.addEventListener('click', () => {
       fileInput.click();
     });
@@ -102,13 +106,14 @@
           return;
         }
 
-        // Inserção correta na tabela `docs`
+        // Inserção no banco de dados com o código do setor
         const { error: insertError } = await supabase
           .from('docs')
           .insert({
-            doc_name: file.name, // nome da coluna correto
-            format: '.' + ext,   // nome da coluna correto
-            url: `${supabaseUrl}/storage/v1/object/public/documents/${path}`
+            doc_name: file.name,
+            format: '.' + ext,
+            url: `${supabaseUrl}/storage/v1/object/public/documents/${path}`,
+            sector: sectorCode // 👈 novo campo adicionado
           });
 
         if (insertError) {
